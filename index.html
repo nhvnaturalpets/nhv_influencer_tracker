@@ -609,6 +609,24 @@ select.fselect:disabled{cursor:default;opacity:.85}
 
 .mtpill.product{background:#EDF6DC;color:#217C01;border-color:#CFE6A8}
 .mtpill.custom{background:var(--surface-2);color:var(--ink-2);border-color:var(--line)}
+
+/* change password */
+.acctbtns{margin:14px 0 0;display:flex;gap:8px;flex-wrap:wrap}
+.pwscrim{position:fixed;inset:0;z-index:50;background:rgba(10,14,24,.4);display:grid;place-items:center;padding:16px}
+.pwscrim[hidden]{display:none}
+.pwdlg{width:min(420px,100%);background:var(--surface);border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.25);overflow:hidden;animation:pwin .2s ease}
+@keyframes pwin{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.pwbody{padding:18px 22px 20px;display:grid;gap:14px}
+.pwbody .f input{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 11px}
+.pwmeter{display:flex;align-items:center;gap:10px;margin-top:-6px;font-size:12px;color:var(--ink-3)}
+.pwmeter i{flex:1;height:5px;border-radius:5px;background:var(--surface-2);position:relative;overflow:hidden}
+.pwmeter i::after{content:"";position:absolute;inset:0;width:0;background:var(--ink-3);transition:width .2s,background .2s}
+.pwmeter[data-score="0"] i::after{width:12%;background:#D33A4F}.pwmeter[data-score="1"] i::after{width:30%;background:#D33A4F}
+.pwmeter[data-score="2"] i::after{width:55%;background:#F1A500}.pwmeter[data-score="3"] i::after{width:78%;background:#99CC34}
+.pwmeter[data-score="4"] i::after{width:100%;background:#217C01}
+.pwshow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer}
+.pwfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+@media (prefers-reduced-motion:reduce){.pwdlg{animation:none}}
 </style>
 </head>
 <body>
@@ -664,7 +682,7 @@ select.fselect:disabled{cursor:default;opacity:.85}
           <dt><span class="role employee">Employee</span></dt><dd>Add, edit and move campaigns. Can't delete.</dd>
           <dt><span class="role viewer">Viewer</span></dt><dd>Sees everything, can't change anything.</dd>
         </dl>
-        <p style="margin-top:14px"><button class="btn" id="signOutBtn" type="button">Sign out</button></p>
+        <p class="acctbtns"><button class="btn" id="changePwBtn" type="button"><svg class="btnico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/></svg>Change password</button><button class="btn" id="signOutBtn" type="button">Sign out</button></p>
       </div>
   </div>
 </div></div>
@@ -775,6 +793,21 @@ select.fselect:disabled{cursor:default;opacity:.85}
     <div style="display:flex;gap:8px"><button class="btn" id="iCancel">Cancel</button><button class="btn primary" id="iSave">Save</button></div>
   </div>
 </aside>
+<div class="pwscrim" id="pwScrim" hidden>
+  <div class="pwdlg" role="dialog" aria-modal="true" aria-labelledby="pwTitle">
+    <div class="dhead"><h3 id="pwTitle">Change password</h3><button class="btn iconbtn" id="pwClose" type="button" aria-label="Close">✕</button></div>
+    <form id="pwForm" class="pwbody" autocomplete="on">
+      <input type="email" id="pwEmail" autocomplete="username" hidden>
+      <label class="f">Current password<input type="password" id="pwCur" autocomplete="current-password" required></label>
+      <label class="f">New password<input type="password" id="pwNew" autocomplete="new-password" minlength="8" required></label>
+      <div class="pwmeter" id="pwMeter"><i></i><span></span></div>
+      <label class="f">Confirm new password<input type="password" id="pwNew2" autocomplete="new-password" minlength="8" required></label>
+      <label class="pwshow"><input type="checkbox" id="pwShow"> Show passwords</label>
+      <div class="err" id="pwErr"></div>
+      <div class="pwfoot"><button class="btn" type="button" id="pwCancel">Cancel</button><button class="btn primary" type="submit" id="pwSave">Update password</button></div>
+    </form>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
@@ -1453,6 +1486,45 @@ function renderRole(){
 $("#roleBtn").addEventListener("click",e=>{e.stopPropagation();const o=$("#rolePop").classList.toggle("open");$("#roleBtn").setAttribute("aria-expanded",o);});
 document.addEventListener("click",e=>{if(!e.target.closest("#rolePop"))$("#rolePop").classList.remove("open"); if(!e.target.closest(".mpwrap")&&$("#mp"))toggleMonthPicker(false);});
 $("#signOutBtn").onclick=async()=>{await sb.auth.signOut();};
+
+/* ---------- change my password ---------- */
+function openPw(){
+  $("#rolePop").classList.remove("open");
+  $("#pwForm").reset(); $("#pwErr").textContent=""; syncPwMeter();
+  $("#pwEmail").value=(me&&me.email)||"";
+  ["#pwCur","#pwNew","#pwNew2"].forEach(x=>$(x).type="password");
+  $("#pwScrim").hidden=false; setTimeout(()=>$("#pwCur").focus(),30);
+}
+function closePw(){ $("#pwScrim").hidden=true; $("#roleBtn").focus(); }
+function pwScore(p){ let n=0; if(p.length>=8)n++; if(p.length>=12)n++; if(/[a-z]/.test(p)&&/[A-Z]/.test(p))n++; if(/\d/.test(p))n++; if(/[^A-Za-z0-9]/.test(p))n++; return Math.min(4,n); }
+function syncPwMeter(){
+  const p=$("#pwNew").value, m=$("#pwMeter"), sc=p?pwScore(p):0;
+  m.dataset.score=p?sc:""; m.querySelector("span").textContent=!p?"At least 8 characters":["Too weak","Weak","Okay","Good","Strong"][sc];
+}
+$("#changePwBtn").onclick=e=>{ e.stopPropagation(); openPw(); };
+$("#pwClose").onclick=closePw; $("#pwCancel").onclick=closePw;
+$("#pwScrim").addEventListener("click",e=>{ if(e.target.id==="pwScrim") closePw(); });
+$("#pwScrim").addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.stopPropagation(); closePw(); } });
+$("#pwNew").addEventListener("input",syncPwMeter);
+$("#pwShow").addEventListener("change",e=>["#pwCur","#pwNew","#pwNew2"].forEach(x=>$(x).type=e.target.checked?"text":"password"));
+$("#pwForm").addEventListener("submit",async e=>{
+  e.preventDefault(); const err=$("#pwErr"); err.textContent="";
+  const cur=$("#pwCur").value, nw=$("#pwNew").value, nw2=$("#pwNew2").value;
+  if(nw.length<8){ err.textContent="Your new password needs at least 8 characters."; return; }
+  if(nw!==nw2){ err.textContent="The new passwords don't match."; return; }
+  if(nw===cur){ err.textContent="Choose a password different from your current one."; return; }
+  const btn=$("#pwSave"); btn.disabled=true; btn.textContent="Updating…";
+  try{
+    // confirm it's really them before changing anything
+    const {data:{user}}=await sb.auth.getUser();
+    const email=(user&&user.email)||(me&&me.email);
+    const chk=await sb.auth.signInWithPassword({email,password:cur});
+    if(chk.error){ err.textContent="Your current password isn't right."; return; }
+    const {error}=await sb.auth.updateUser({password:nw});
+    if(error){ err.textContent=/weak|short|length|characters/i.test(error.message)?"That password is too weak. Try a longer one with numbers or symbols.":(/same|different/i.test(error.message)?"Choose a password different from your current one.":"Couldn't update: "+error.message); return; }
+    closePw(); toast("Password updated");
+  } finally { btn.disabled=false; btn.textContent="Update password"; }
+});
 
 /* ---------- drawer ---------- */
 function pickers(){
