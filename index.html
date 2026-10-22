@@ -627,6 +627,15 @@ select.fselect:disabled{cursor:default;opacity:.85}
 .pwshow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);cursor:pointer}
 .pwfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
 @media (prefers-reduced-motion:reduce){.pwdlg{animation:none}}
+
+.sentnote{display:flex;gap:12px;align-items:flex-start;margin-top:14px;padding:12px 14px;border-radius:12px;background:#EDF6DC;color:#1E4E07}
+.sentnote svg{width:22px;height:22px;flex:none;color:#217C01;margin-top:1px}
+.sentnote b{display:block;font:800 14px Nunito,"Open Sans",sans-serif;margin-bottom:2px}
+.sentnote span{font-size:13px;line-height:1.45}
+#setPassForm .pwmeter{margin-top:-6px}
+
+.dfoot>div:first-child{flex-wrap:wrap}
+.dfoot>div:last-child{margin-left:auto}
 </style>
 </head>
 <body>
@@ -653,14 +662,30 @@ select.fselect:disabled{cursor:default;opacity:.85}
       <p style="margin:14px 0 0"><button class="linkbtn" id="forgotBtn" type="button">Forgot password?</button></p>
       <div class="ok" id="lOk"></div>
     </div>
+    <div id="forgotBox" hidden>
+      <h2>Reset your password</h2>
+      <p class="sub">Enter the email you sign in with and we'll send you a link to choose a new password.</p>
+      <form id="forgotForm">
+        <label class="f">Email<input type="email" id="fgEmail" autocomplete="username" required></label>
+        <div class="err" id="fgErr"></div>
+        <button class="btn primary" type="submit" id="fgBtn">Send reset link</button>
+      </form>
+      <div class="sentnote" id="fgSent" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5l8.5 6 8.5-6"/></svg>
+        <div><b>Check your email</b><span id="fgSentTxt"></span></div>
+      </div>
+      <p style="margin:14px 0 0"><button class="linkbtn" id="backToLogin" type="button">← Back to sign in</button></p>
+    </div>
     <div id="setPassBox" hidden>
-      <h2>Set your password</h2>
-      <p class="sub">Choose a password to finish setting up your account.</p>
+      <h2 id="spTitle">Set your password</h2>
+      <p class="sub" id="spSub">Choose a password to finish setting up your account.</p>
       <form id="setPassForm">
-        <label class="f">Your name<input id="sName" autocomplete="name" placeholder="e.g. Adrian Lopez"></label>
+        <label class="f" id="sNameWrap">Your name<input id="sName" autocomplete="name" placeholder="e.g. Adrian Lopez"></label>
         <label class="f">New password<input type="password" id="sPass" autocomplete="new-password" minlength="8" required></label>
+        <div class="pwmeter" id="spMeter"><i></i><span>At least 8 characters</span></div>
+        <label class="f">Confirm new password<input type="password" id="sPass2" autocomplete="new-password" minlength="8" required></label>
         <div class="err" id="sErr"></div>
-        <button class="btn primary" type="submit">Save password</button>
+        <button class="btn primary" type="submit" id="spBtn">Save password</button>
       </form>
     </div>
   </div>
@@ -773,7 +798,7 @@ select.fselect:disabled{cursor:default;opacity:.85}
     <div class="err" id="fErr"></div>
   </div>
   <div class="dfoot">
-    <div style="display:flex;gap:8px"><button class="btn" id="dArchive">Archive</button><button class="btn danger" id="dDelete"><svg class="btnico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4 4.5l.7 8.6a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-8.6M6.8 7v4.5M9.2 7v4.5"/></svg>Delete</button></div>
+    <div style="display:flex;gap:8px"><button class="btn" id="dDup" title="Make a copy of this campaign"><svg class="btnico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.6"/><path d="M11 5V3.6A1.6 1.6 0 0 0 9.4 2H3.6A1.6 1.6 0 0 0 2 3.6v5.8A1.6 1.6 0 0 0 3.6 11H5"/></svg>Duplicate</button><button class="btn" id="dArchive">Archive</button><button class="btn danger" id="dDelete"><svg class="btnico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4 4.5l.7 8.6a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-8.6M6.8 7v4.5M9.2 7v4.5"/></svg>Delete</button></div>
     <div style="display:flex;gap:8px"><button class="btn" id="dCancel">Cancel</button><button class="btn primary" id="dSave">Save</button></div>
   </div>
 </aside>
@@ -1558,6 +1583,7 @@ function openDrawer(c,preset={}){
   $("#dSave").hidden=ro; $("#dCancel").textContent=ro?"Close":"Cancel";
   $("#dDelete").hidden=!(c&&canDelete());
   $("#dArchive").hidden=!(c&&canWrite());
+  $("#dDup").hidden=!(c&&canWrite());
   if(c){ $("#dArchive").innerHTML=c.archivedAt?"↩ Restore":`${ARCH_ICON}Archive`; }
   $("#dTitle").textContent=(c&&c.archivedAt)?"Archived campaign":$("#dTitle").textContent;
   $("#fEdited").innerHTML=c?`<div class="stamps big">${stamp("Created",c.createdBy,c.createdAt)}${stamp("Last edited",c.updatedBy,c.updatedAt)}</div>`:"";
@@ -1640,6 +1666,21 @@ $("#dSave").onclick=async()=>{
   if(c.start&&c.end&&c.end<c.start){$("#fErr").textContent="End date needs to be on or after the start date.";return;}
   const ok=await saveCampaign(c,editing?"Saved":"Campaign added"); if(ok) closeDrawer();
 };
+/* duplicate: opens an unsaved copy to adjust before saving */
+$("#dDup").onclick=()=>{
+  if(!editing||!canWrite()) return;
+  const src=editing;
+  const copy={influencerId:src.influencerId,influencer:src.influencer,channel:src.channel,status:"Not Started",
+    asset:(src.asset?src.asset+" (copy)":""),moneyTag:src.moneyTag||"",adset:src.adset||"",notes:src.notes||"",
+    filesUrl:src.filesUrl||"",postUrl:"",start:"",end:"",verdict:null,spend:null,lpv:null,conv:null,cplpv:null};
+  closeDrawer();
+  setTimeout(()=>{
+    openDrawer(null,copy);
+    $("#dTitle").textContent="Duplicate campaign";
+    const f=$("#fAsset"); if(f){ f.focus(); f.select(); }
+    toast("Copy ready. Adjust it, then click Save.");
+  },180);
+};
 $("#dArchive").onclick=async()=>{ if(editing&&canWrite()){ if(await setArchived(editing.id,!editing.archivedAt)) closeDrawer(); } };
 $("#dDelete").onclick=async()=>{ if(editing&&canDelete()&&confirm(`Delete "${editing.influencer} — ${editing.asset}"?`)){ if(await deleteCampaign(editing.id)) closeDrawer(); } };
 
@@ -1700,7 +1741,14 @@ function subscribe(uid){
 /* ---------- auth ---------- */
 function showAuth(mode){
   $("#appView").hidden=true; $("#authView").hidden=false;
-  $("#loginBox").hidden=mode==="setpass"; $("#setPassBox").hidden=mode!=="setpass";
+  $("#loginBox").hidden=mode!=="login"; $("#forgotBox").hidden=mode!=="forgot"; $("#setPassBox").hidden=mode!=="setpass";
+  if(mode==="setpass"){
+    const reset=urlType==="recovery"||recoveryMode;
+    $("#spTitle").textContent=reset?"Choose a new password":"Set your password";
+    $("#spSub").textContent=reset?"Enter a new password for your account. You'll be signed in once it's saved.":"Choose a password to finish setting up your account.";
+    $("#sNameWrap").hidden=reset;
+    setTimeout(()=>$("#sPass").focus(),30);
+  }
 }
 let shownFor=null;
 async function showApp(session){
@@ -1719,30 +1767,73 @@ $("#loginForm").addEventListener("submit",async e=>{
   $("#lBtn").disabled=false;
   if(error) $("#lErr").textContent= error.message==="Invalid login credentials" ? "That email and password don't match. Try again or reset your password." : error.message;
 });
-$("#forgotBtn").onclick=async()=>{
-  const email=$("#lEmail").value.trim(); $("#lErr").textContent=""; $("#lOk").textContent="";
-  if(!email){$("#lErr").textContent="Enter your email above first.";return;}
-  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
-  if(error) $("#lErr").textContent=error.message; else $("#lOk").textContent="Check your email for a link to reset your password.";
+/* ---------- forgot password: email a reset link ---------- */
+let resendTimer=null;
+$("#forgotBtn").onclick=()=>{
+  $("#fgEmail").value=$("#lEmail").value.trim(); $("#fgErr").textContent=""; $("#fgSent").hidden=true;
+  showAuth("forgot"); setTimeout(()=>$("#fgEmail").focus(),30);
 };
+$("#backToLogin").onclick=()=>{ if($("#fgEmail").value) $("#lEmail").value=$("#fgEmail").value; showAuth("login"); };
+function startResendCooldown(sec){
+  const b=$("#fgBtn"); clearInterval(resendTimer); let n=sec; b.disabled=true;
+  const tick=()=>{ if(n<=0){ clearInterval(resendTimer); b.disabled=false; b.textContent="Send again"; return; } b.textContent=`Send again in ${n}s`; n--; };
+  tick(); resendTimer=setInterval(tick,1000);
+}
+$("#forgotForm").addEventListener("submit",async e=>{
+  e.preventDefault(); const err=$("#fgErr"); err.textContent="";
+  const email=$("#fgEmail").value.trim(); if(!email) return;
+  const b=$("#fgBtn"); b.disabled=true; b.textContent="Sending…";
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error&&/rate limit|too many|seconds/i.test(error.message)){
+    err.textContent="Too many reset emails have been sent recently. Please wait a little while and try again, or ask your admin.";
+    b.disabled=false; b.textContent="Send reset link"; return;
+  }
+  if(error&&!/not found|no user/i.test(error.message)){ err.textContent="Couldn't send the email: "+error.message; b.disabled=false; b.textContent="Send reset link"; return; }
+  // Same message whether or not the account exists, so the form can't be used to check who has an account
+  $("#fgSentTxt").textContent=`If ${email} has an account, a reset link is on its way. It can take a minute or two, so check your spam folder too. The link works once and expires after an hour.`;
+  $("#fgSent").hidden=false; startResendCooldown(60);
+});
+
+/* ---------- choose a new password (from the email link, or an invite) ---------- */
+let recoveryMode=false;
+$("#sPass").addEventListener("input",()=>{ const p=$("#sPass").value,m=$("#spMeter"),sc=p?pwScore(p):0; m.dataset.score=p?sc:""; m.querySelector("span").textContent=!p?"At least 8 characters":["Too weak","Weak","Okay","Good","Strong"][sc]; });
 $("#setPassForm").addEventListener("submit",async e=>{
-  e.preventDefault(); $("#sErr").textContent="";
-  const name=$("#sName").value.trim();
-  const {data,error}=await sb.auth.updateUser({password:$("#sPass").value});
-  if(error){$("#sErr").textContent=error.message;return;}
+  e.preventDefault(); const err=$("#sErr"); err.textContent="";
+  const name=$("#sNameWrap").hidden?"":$("#sName").value.trim(), pw=$("#sPass").value;
+  if(pw.length<8){ err.textContent="Your password needs at least 8 characters."; return; }
+  if(pw!==$("#sPass2").value){ err.textContent="The passwords don't match."; return; }
+  const btn=$("#spBtn"); btn.disabled=true; btn.textContent="Saving…";
+  const {data,error}=await sb.auth.updateUser({password:pw});
+  btn.disabled=false; btn.textContent="Save password";
+  if(error){
+    err.textContent=/session|expired|jwt|not authenticated/i.test(error.message)?"This reset link has expired. Go back to sign in and request a new one."
+      :/weak|short|characters/i.test(error.message)?"That password is too weak. Try a longer one with numbers or symbols."
+      :/same|different/i.test(error.message)?"Choose a password different from your old one.":error.message;
+    return;
+  }
+  if(recoveryMode) toast("Password updated. You're signed in.");
+  recoveryMode=false;
   if(name){ await sb.rpc("set_my_name",{new_name:name}); }
   needsPassword=false; history.replaceState(null,"",location.pathname);
   const {data:{session}}=await sb.auth.getSession(); if(session) showApp(session);
 });
 
-const urlType=new URLSearchParams(location.hash.slice(1)).get("type");
+const hashParams=new URLSearchParams(location.hash.slice(1));
+const urlType=hashParams.get("type");
 let needsPassword = urlType==="invite" || urlType==="recovery";
+if(urlType==="recovery") recoveryMode=true;
+// Expired or already-used email links come back with an error in the address
+if(hashParams.get("error")){
+  const code=hashParams.get("error_code")||"";
+  setTimeout(()=>{ showAuth("login"); $("#lErr").textContent=/expired|otp/i.test(code+hashParams.get("error_description"))?"That link has expired or was already used. Click \"Forgot password?\" to get a new one.":"That link didn't work. Click \"Forgot password?\" to get a new one."; },0);
+  history.replaceState(null,"",location.pathname);
+}
 sb.auth.onAuthStateChange((event,session)=>{
   // Supabase recommends not calling it from inside this callback, so defer the work.
   setTimeout(()=>handleAuth(event,session),0);
 });
 function handleAuth(event,session){
-  if(event==="PASSWORD_RECOVERY"){ needsPassword=true; showAuth("setpass"); return; }
+  if(event==="PASSWORD_RECOVERY"){ needsPassword=true; recoveryMode=true; showAuth("setpass"); return; }
   if(event==="SIGNED_OUT"||!session){ shownFor=null; me=null; campaigns=[]; if(channelSub){sb.removeChannel(channelSub);channelSub=null;} showAuth("login"); return; }
   if(needsPassword){ showAuth("setpass"); return; }
   if(event==="SIGNED_IN"||event==="INITIAL_SESSION") showApp(session);
